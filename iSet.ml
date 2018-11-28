@@ -36,7 +36,7 @@
 (* Typ reprezentujący przedział jako jego lewy i prawy kraniec. lewy <= prawy *)
 type interval = int * int
 
-(* Typ reprezentujący drzewo AVL. Najdłuższa ścieżka od korzenia do liścia *)
+(* Typ reprezentujący zbiór jako drzewo AVL przedziałów. Najdłuższa ścieżka od korzenia do liścia *)
 (* jest maksymalnie o 2 większa od najkrótszej. *)
 (* t = lewe poddrzewo * przedział * prawe poddrzewo * wysokość drzewa * suma długości przedziałów *)
 (* LUB *)
@@ -67,7 +67,8 @@ let interval_in_interval (x, y) (x2, y2) =
 
 (* Liczba liczb całkowitych w przedziale. *)
 let length (x, y) =
-        y - x + 1
+        let l = y - x + 1 in
+        if l <= 0 then max_int else l
 
 (*************************)
 (* SELEKTORY PODSTAWOWE  *)
@@ -90,7 +91,11 @@ let element k = Node(Empty, k, Empty, 1, length k)
 
 (* Funkcja tworząca drzewo mając wartość, lewe i prawe poddrzewo. *)
 (* Zakładamy, że argumenty są takie, że wynikowe drzewo jest AVL. *)
-let make l k r = Node (l, k, r, max (height l) (height r) + 1, length k + sum l + sum r)
+let make l k r =
+        let s = length k + sum l + sum r in
+        let sm = if s <= 0 then max_int else s
+        in
+        Node (l, k, r, max (height l) (height r) + 1, sm)
 
 (*************************)
 (*  FUNKCJE POMOCNICZE   *)
@@ -157,7 +162,7 @@ let rec add_el k set =
                 if k < k2 then bal (add_el k l) k2 r
                 else bal l k2 (add_el k r)
 
-(* Usuwa przedział, który zawiera się w danym drzewie. *)        
+(* Usuwa przedział, który w całości zawiera się w danym drzewie. *)        
 let rec remove_exist (x, y) set =
         match set with
         | Empty -> invalid_arg "ISet.remove_exist"
@@ -196,7 +201,9 @@ let add (x, y) set =
                         else if v > sety then find_val v r
                         else (setx, sety)
         in
-                let ((l1, r1), (l2, r2)) = (find_val (x - 1) set, find_val (y + 1) set) in
+                let (l1, r1) = if x = min_int then bad_interval else find_val (x - 1) set
+                in let (l2, r2) = if y = max_int then bad_interval else find_val (y + 1) set 
+                in
                 let x2 = if (l1, r1) = bad_interval then x else l1 in
                 let y2 = if (l2, r2) = bad_interval then y else r2 in
                 let set2 = remove (x2, y2) set in
@@ -271,7 +278,7 @@ let below x set =
                         if x < setx then below_helper x l acc
                         else if x > sety then below_helper x r (acc + sum l + length (setx, sety))
                         else 
-                                let ans = acc + sum l + x - setx + 1 in 
+                                let ans = acc + sum l + length (setx, x) in 
                                 if ans <= 0 then max_int else ans
         in
                 below_helper x set 0
